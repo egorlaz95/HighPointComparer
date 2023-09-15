@@ -8,10 +8,13 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.gson.Gson;
 
 import org.osmdroid.views.overlay.Marker;
 
@@ -37,11 +40,13 @@ public class MainActivity extends AppCompatActivity {
     private EditText editTextCity;
     private Button buttonSearch;
     private MapView mapView;
+    private LinearLayout topLayout;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this));
         setContentView(R.layout.activity_main);
+        topLayout = findViewById(R.id.topLayout);
         editTextCity = findViewById(R.id.editTextCity);
         buttonSearch = findViewById(R.id.buttonSearch);
         MapView mapView = findViewById(R.id.mapView);
@@ -71,13 +76,15 @@ public class MainActivity extends AppCompatActivity {
                 Address address = addresses.get(0);
                 double latitude = address.getLatitude();
                 double longitude = address.getLongitude();
+                Log.d("latitude", String.valueOf(latitude));
+                Log.d("longitude", String.valueOf(longitude));
+                mapView.getOverlays().clear();
                 Marker marker = new Marker(mapView);
                 marker.setPosition(new GeoPoint(latitude, longitude));
                 mapView.getOverlays().add(marker);
                 mapView.getController().setCenter(new GeoPoint(latitude, longitude));
                 mapView.invalidate();
-                String locations = String.format("%f,%f", latitude, longitude);
-
+                String locations = String.valueOf(latitude) + " , " + String.valueOf(longitude);
                 Retrofit retrofit = new Retrofit.Builder()
                         .baseUrl(OPEN_ELEVATION_API_BASE_URL)
                         .addConverterFactory(GsonConverterFactory.create())
@@ -91,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
                         if (response.isSuccessful() && response.body() != null) {
                             ElevationResponse elevationResponse = response.body();
                             double elevation = elevationResponse.getResults()[0].getElevation();
-                            CustomElevationInfoWindow elevationInfoWindow = new CustomElevationInfoWindow(MainActivity.this, R.layout.custom_info_window, mapView, elevation);
+                            CustomElevationInfoWindow elevationInfoWindow = new CustomElevationInfoWindow(R.layout.custom_info_window, mapView, elevation);
                             marker.setInfoWindow(elevationInfoWindow);
                             marker.showInfoWindow();
                         } else {

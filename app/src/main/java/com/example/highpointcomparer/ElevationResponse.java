@@ -5,7 +5,6 @@ import com.google.gson.annotations.SerializedName;
 public class ElevationResponse {
     @SerializedName("results")
     private ElevationResult[] results;
-
     public ElevationResult[] getResults() {
         return results;
     }

@@ -7,15 +7,15 @@
     android:padding="8dp">
 
     <TextView
-        android:id="@+id/elevationText"
+        android:id="@+id/textViewElevation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Высота над уровнем моря:"
         android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/elevationValue"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="0 м" />
+<!--    <TextView-->
+<!--        android:id="@+id/elevationValue"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="0 м" />-->
 </LinearLayout>
