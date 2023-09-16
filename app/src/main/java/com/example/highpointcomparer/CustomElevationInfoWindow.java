@@ -16,7 +16,6 @@ public class CustomElevationInfoWindow extends InfoWindow {
 
     public CustomElevationInfoWindow(int layoutResId, MapView mapView, double elevation) {
         super(layoutResId, mapView);
-//        this.mContext = context;
         this.elevation = elevation;
     }
 

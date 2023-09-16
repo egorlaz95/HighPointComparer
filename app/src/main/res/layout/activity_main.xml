@@ -28,6 +28,12 @@
             android:layout_height="wrap_content"
             android:text="Поиск" />
 
+        <Button
+            android:id="@+id/buttonComparer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Сравнить два места" />
+
     </LinearLayout>
 
 
