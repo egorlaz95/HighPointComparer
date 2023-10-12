@@ -1,0 +1,20 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
+
+    <EditText
+        android:id="@+id/editTextLocation"
+        android:layout_width="181dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:hint="Введите локацию" />
+
+    <Button
+        android:id="@+id/buttonSelectLocation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:insetRight="0dp"
+        android:text="Выбрать локацию" />
+
+</LinearLayout>

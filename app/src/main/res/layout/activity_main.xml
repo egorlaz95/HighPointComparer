@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -17,23 +16,32 @@
         app:layout_constraintEnd_toEndOf="parent">
 
         <EditText
+            android:id="@+id/editTextLocation"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="Введите название локации"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/buttonSelectLocation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Выбрать локацию"
+            android:visibility="gone" />
+
+        <EditText
             android:id="@+id/editTextCity"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:hint="Введите название города" />
+            android:hint="Введите название города"
+            android:visibility="visible" />
 
         <Button
             android:id="@+id/buttonSearch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Поиск" />
-
-        <Button
-            android:id="@+id/buttonComparer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Сравнить два места" />
-
+            android:text="Поиск"
+            android:visibility="visible" />
 
     </LinearLayout>
 
@@ -43,21 +51,30 @@
         android:layout_height="0dp"
         app:layout_constraintTop_toBottomOf="@id/topLayout"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"/>
 
     <Button
         android:id="@+id/buttonShowHistory"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="48dp"
+        android:layout_marginTop="16dp"
         android:insetTop="4dp"
         android:insetBottom="40dp"
         android:text="Показать историю"
+        app:layout_constraintBottom_toTopOf="@+id/buttonComparer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/buttonComparer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:insetTop="4dp"
+        android:insetBottom="120dp"
+        android:text="Сравнить два места"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/mapView" />
+        app:layout_constraintStart_toStartOf="parent" />
 
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>

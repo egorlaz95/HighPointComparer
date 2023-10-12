@@ -1,5 +1,8 @@
 package com.example.highpointcomparer;
 
+import static android.app.PendingIntent.getActivity;
+
+import android.app.Dialog;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.sqlite.SQLiteDatabase;
@@ -13,8 +16,12 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+
+import org.osmdroid.events.MapEventsReceiver;
+import org.osmdroid.views.overlay.MapEventsOverlay;
 import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -28,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -43,12 +51,13 @@ public class MainActivity extends AppCompatActivity {
     public Button buttonSearch;
     public Button buttonComparer;
     public LinearLayout topLayout;
-//    Handler handler = new Handler();
     private CustomElevationInfoWindow elevationInfoWindow;
     private boolean isMark;
     private DatabaseHelper dbHelper;
     private Map<String, Double> historyItems = new HashMap<>();
     public MapView mapView;
+    public Button buttonSelectLocation;
+    private EditText editTextLocation;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,8 +66,10 @@ public class MainActivity extends AppCompatActivity {
         dbHelper = new DatabaseHelper(this);
         topLayout = findViewById(R.id.topLayout);
         editTextCity = findViewById(R.id.editTextCity);
+        editTextLocation = findViewById(R.id.editTextLocation);
         buttonSearch = findViewById(R.id.buttonSearch);
         buttonComparer = findViewById(R.id.buttonComparer);
+        buttonSelectLocation = findViewById(R.id.buttonSelectLocation);
         Button buttonShowHistory = findViewById(R.id.buttonShowHistory);
         mapView = findViewById(R.id.mapView);
         mapView.setScrollableAreaLimitDouble(new BoundingBox(85, 180, -85, -180));
@@ -70,12 +81,15 @@ public class MainActivity extends AppCompatActivity {
         mapView.setTileSource(TileSourceFactory.MAPNIK);
         mapView.setBuiltInZoomControls(true);
         mapView.setMultiTouchControls(true);
+        editTextCity.setVisibility(View.VISIBLE);
+        buttonSearch.setVisibility(View.VISIBLE);
+        editTextLocation.setVisibility(View.GONE);
+        buttonSelectLocation.setVisibility(View.GONE);
         buttonSearch.setOnClickListener(new View.OnClickListener() {
-            boolean heightInfo = true;
             @Override
             public void onClick(View view) {
                 String cityName = editTextCity.getText().toString();
-                performCitySearch(cityName, mapView, heightInfo);
+                performCitySearch(cityName);
             }
         });
         buttonComparer.setOnClickListener(new View.OnClickListener() {
@@ -83,6 +97,8 @@ public class MainActivity extends AppCompatActivity {
             private Address city1Location;
             private Address city2Location;
             boolean isMarker = true;
+            public String firstCity;
+            public String secondCity;
             @Override
             public void onClick(View view) {
                 if (elevationInfoWindow != null) {
@@ -92,28 +108,30 @@ public class MainActivity extends AppCompatActivity {
                     mapView.getOverlays().clear();
                     isMark = false;
                 }
-                String cityName = editTextCity.getText().toString();
-                if (!isFirstCitySelected) {
-                    city1Location = getAdress(cityName, mapView);
-                    isFirstCitySelected = true;
-                    editTextCity.setText("");
-                } else {
-                    city2Location = getAdress(cityName, mapView);
-                    isFirstCitySelected = false;
-                    editTextCity.setText("");
-                    isMark = true;
+//                String cityName = editTextCity.getText().toString();
+//                if (!isFirstCitySelected) {
+//                    firstCity = cityName;
+//                    city1Location = getAdress(cityName, mapView);
+//                    isFirstCitySelected = true;
+//                    editTextCity.setText("");
+//                } else {
+//                    secondCity = cityName;
+//                    city2Location = getAdress(cityName, mapView);
+//                    isFirstCitySelected = false;
+//                    editTextCity.setText("");
+//                    isMark = true;
+//                }
+//                compareTwoLocations(city1Location, city2Location, firstCity, secondCity);
+//                city2Location = null;
+//                if (!isMarker){
+//                    isMarker = true;
+//                }
+                if (isMark){
+                    mapView.getOverlays().clear();
+                    isMark = false;
                 }
-                compareTwoLocations(city1Location, city2Location);
-                city2Location = null;
-                if (!isMarker){
-                    isMarker = true;
-                }
-//                handler.postDelayed(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        mapView.getOverlays().clear();
-//                    }
-//                }, 20000);
+                updateToCompare();
+                showDialogForLocationInput();
             }
         });
         buttonShowHistory.setOnClickListener(new View.OnClickListener() {
@@ -128,10 +146,36 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+        mapView.getOverlays().add(new MapEventsOverlay(new MapEventsReceiver() {
+            @Override
+            public boolean singleTapConfirmedHelper(GeoPoint p) {
+                Marker marker = new Marker(mapView);
+                marker.setPosition(p);
+                mapView.getOverlays().add(marker);
+                Geocoder geocoder = new Geocoder(getBaseContext(), Locale.getDefault());
+                try {
+                    List<Address> addresses = geocoder.getFromLocation(p.getLatitude(), p.getLongitude(), 1);
+                    if (addresses != null && !addresses.isEmpty()) {
+                        Address address = addresses.get(0);
+                        performCityTap(address);
+                    } else {
+                        Log.e("Tap Error", "Not Found");
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                return true;
+            }
+
+            @Override
+            public boolean longPressHelper(GeoPoint p) {
+                return false;
+            }
+        }));
     }
 
 
-    private void performCitySearch(String cityName, MapView mapView, boolean heightInfo) {
+    private void performCitySearch(String cityName) {
         Geocoder geocoder = new Geocoder(this);
         List<Address> addresses;
         try {
@@ -187,6 +231,49 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
     }
+    public void performCityTap(Address address){
+        double latitude = address.getLatitude();
+        double longitude = address.getLongitude();
+        Log.d("latitude", String.valueOf(latitude));
+        Log.d("longitude", String.valueOf(longitude));
+        if (elevationInfoWindow != null) {
+            elevationInfoWindow.close();
+        }
+        Marker marker = new Marker(mapView);
+        marker.setPosition(new GeoPoint(latitude, longitude));
+        mapView.getController().setCenter(new GeoPoint(latitude, longitude));
+        mapView.invalidate();
+        String locations = String.valueOf(latitude) + " , " + String.valueOf(longitude);
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(OPEN_ELEVATION_API_BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        ElevationApi elevationApi = retrofit.create(ElevationApi.class);
+        Call<ElevationResponse> call = elevationApi.getElevation(locations, "json");
+        call.enqueue(new Callback<ElevationResponse>() {
+            @Override
+            public void onResponse(Call<ElevationResponse> call, Response<ElevationResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    ElevationResponse elevationResponse = response.body();
+                    double elevation = elevationResponse.getResults()[0].getElevation();
+                    String addressLine = address.getAddressLine(0);
+                    historyItems.put(addressLine, elevation);
+                    elevationInfoWindow = new CustomElevationInfoWindow(R.layout.custom_info_window, mapView, elevation);
+                    marker.setInfoWindow(elevationInfoWindow);
+                    marker.showInfoWindow();
+                    isMark = true;
+                } else {
+                    Log.e("Elevation", "Failed to retrieve elevation data.");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ElevationResponse> call, Throwable t) {
+                Log.e("Elevation", "Error: " + t.getMessage());
+            }
+        });
+    }
 
     private Address getAdress(String cityName, MapView mapView) {
         Geocoder geocoder = new Geocoder(this);
@@ -212,13 +299,13 @@ public class MainActivity extends AppCompatActivity {
         return address;
     }
 
-    private void compareTwoLocations(Address city1Location, Address city2Location) {
+    private void compareTwoLocations(Address city1Location, Address city2Location, String firstCity, String secondCity) {
         if (city1Location != null && city2Location != null) {
+            updateToSearch();
             String location1 = String.valueOf(city1Location.getLatitude()) + " , " + String.valueOf(city1Location.getLongitude());
             String location2 = String.valueOf(city2Location.getLatitude()) + " , " + String.valueOf(city2Location.getLongitude());
             GeoPoint point1 = convertAddressToGeoPoint(city1Location);
             GeoPoint point2 = convertAddressToGeoPoint(city2Location);
-            drawGreenLine(point1, point2);
             Retrofit retrofit = new Retrofit.Builder()
                     .baseUrl(OPEN_ELEVATION_API_BASE_URL)
                     .addConverterFactory(GsonConverterFactory.create())
@@ -236,10 +323,12 @@ public class MainActivity extends AppCompatActivity {
                             public void onResponse(Call<ElevationResponse> call, Response<ElevationResponse> response) {
                                 if (response.isSuccessful() && response.body() != null) {
                                     double elevation2 = response.body().getResults()[0].getElevation();
-                                    double elevationDifference = elevation2 - elevation1;
-                                    Toast.makeText(getApplicationContext(),
-                                            "Разница в высоте: " + elevationDifference + " м",
-                                            Toast.LENGTH_SHORT).show();
+                                    double elevationDifference = Math.abs(elevation2 - elevation1);
+                                    drawGreenLine(point1, point2, elevationDifference);
+                                    CompareInfoDialog compareInfoDialog = new CompareInfoDialog(elevationDifference);
+                                    compareInfoDialog.show(getSupportFragmentManager(), compareInfoDialog.getTag());
+                                    String cities = "Разница между " + firstCity + " и " + secondCity;
+                                    historyItems.put(cities, elevationDifference);
                                 } else {
                                     Log.e("Elevation", "Failed to retrieve elevation data for city 2.");
                                 }
@@ -278,13 +367,57 @@ public class MainActivity extends AppCompatActivity {
         double longitude = address.getLongitude();
         return new GeoPoint(latitude, longitude);
     }
-    private void drawGreenLine(GeoPoint startPoint, GeoPoint endPoint) {
+    private void drawGreenLine(GeoPoint startPoint, GeoPoint endPoint, double elevationDifference) {
         Polyline line = new Polyline();
-        line.setColor(Color.GREEN);
-        line.setWidth(5);
+        if (elevationDifference < 50) {
+            line.setColor(Color.GREEN);
+        } else if (elevationDifference < 100){
+            line.setColor(Color.YELLOW);
+        } else {
+            line.setColor(Color.RED);
+        }
+        line.setWidth(6);
         line.setPoints(Arrays.asList(startPoint, endPoint));
         mapView.getOverlayManager().add(line);
         mapView.invalidate();
     }
+    private void showDialogForLocationInput() {
+        buttonSelectLocation.setOnClickListener(new View.OnClickListener() {
+            private String firstCityName;
+            private Address city1Location;
+            private Address city2Location;
+            private String secondCityName;
+            boolean isFirstCitySelected = false;
+            @Override
+            public void onClick(View v) {
+                String cityName = editTextLocation.getText().toString();
+                if (!isFirstCitySelected) {
+                    firstCityName = cityName;
+                    city1Location = getAdress(cityName, mapView);
+                    isFirstCitySelected = true;
+                    editTextLocation.setText("");
+                } else {
+                    secondCityName = cityName;
+                    city2Location = getAdress(cityName, mapView);
+                    isFirstCitySelected = false;
+                    editTextLocation.setText("");
+                    isMark = true;
+                }
+                compareTwoLocations(city1Location, city2Location, firstCityName, secondCityName);
+            }
+        });
+    }
 
+    private void updateToCompare() {
+        editTextLocation.setVisibility(View.VISIBLE);
+        buttonSelectLocation.setVisibility(View.VISIBLE);
+        editTextCity.setVisibility(View.GONE);
+        buttonSearch.setVisibility(View.GONE);
+    }
+    private void updateToSearch() {
+        editTextLocation.setVisibility(View.GONE);
+        buttonSelectLocation.setVisibility(View.GONE);
+        editTextCity.setVisibility(View.VISIBLE);
+        buttonSearch.setVisibility(View.VISIBLE);
+    }
 }
