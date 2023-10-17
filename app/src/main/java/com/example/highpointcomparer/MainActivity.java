@@ -64,7 +64,6 @@ public class MainActivity extends AppCompatActivity {
     public Address addressToCompare;
     public Button buttonShowHistory;
     public Button buttonSearcher;
-    public boolean isSearchTapped = false;
     public String firstCityName;
     public String secondCityName;
     public boolean isFirstCitySelected = false;
@@ -122,19 +121,17 @@ public class MainActivity extends AppCompatActivity {
             private int markerCount;
             @Override
             public void onClick(View view) {
-                if (!isSearchTapped) {
-                    buttonSearcher.setVisibility(View.VISIBLE);
-                    buttonComparer.setVisibility(View.GONE);
-                    if (elevationInfoWindow != null) {
-                        elevationInfoWindow.close();
-                    }
-                    if (isMark) {
-                        mapView.getOverlays().clear();
-                        isMark = false;
-                    }
-                    updateToCompare();
-                    showDialogForLocationInput();
+                buttonSearcher.setVisibility(View.VISIBLE);
+                buttonComparer.setVisibility(View.GONE);
+                if (elevationInfoWindow != null) {
+                    elevationInfoWindow.close();
                 }
+                if (isMark) {
+                    mapView.getOverlays().clear();
+                    isMark = false;
+                }
+                updateToCompare();
+                showDialogForLocationInput();
             }
         });
 
@@ -144,7 +141,7 @@ public class MainActivity extends AppCompatActivity {
                 buttonSearcher.setVisibility(View.GONE);
                 buttonComparer.setVisibility(View.VISIBLE);
                 updateToSearch();
-                isSearchTapped = true;
+                markerByTap();
             }
         });
         buttonShowHistory.setOnClickListener(new View.OnClickListener() {
@@ -319,13 +316,6 @@ public class MainActivity extends AppCompatActivity {
                 double latitude = address.getLatitude();
                 double longitude = address.getLongitude();
                 Marker marker = new Marker(mapView);
-                if (firstCityName == null && secondCityName == null){
-                    mapView.getOverlays().remove(previousMarker);
-                    mapView.getOverlays().remove(morePreviousMarker);
-                    if (line != null) {
-                        mapView.getOverlays().remove(line);
-                    }
-                }
                 morePreviousMarker = previousMarker;
                 previousMarker = marker;
                 marker.setPosition(new GeoPoint(latitude, longitude));
@@ -445,9 +435,6 @@ public class MainActivity extends AppCompatActivity {
         mapView.invalidate();
     }
     private void showDialogForLocationInput() {
-//        if (buttonSearcher.performClick()){
-//            return;
-//        }
         markerByTapToCompare(new GeocodeCallback() {
             @Override
             public void onGeocodeSuccess(Address address) {
@@ -474,11 +461,17 @@ public class MainActivity extends AppCompatActivity {
         });
         buttonSelectLocation.setOnClickListener(new View.OnClickListener() {
             private Marker marker;
-
             @Override
             public void onClick(View v) {
                 cityName = editTextLocation.getText().toString();
                 if (!isFirstCitySelected) {
+                    if (firstCityName == null && secondCityName == null){
+                        mapView.getOverlays().remove(previousMarker);
+                        mapView.getOverlays().remove(morePreviousMarker);
+                        if (line != null) {
+                            mapView.getOverlays().remove(line);
+                        }
+                    }
                     firstCityName = cityName;
                     city1Location = getAdressForSearch(cityName, mapView);
                     isFirstCitySelected = true;
