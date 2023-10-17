@@ -1,6 +1,7 @@
 package com.example.highpointcomparer;
 
 import static android.app.PendingIntent.getActivity;
+import static android.app.PendingIntent.readPendingIntentOrNullFromParcel;
 
 import android.app.Dialog;
 import android.content.ContentValues;
@@ -58,6 +59,20 @@ public class MainActivity extends AppCompatActivity {
     public MapView mapView;
     public Button buttonSelectLocation;
     private EditText editTextLocation;
+    private Marker previousMarker = null;
+    private Marker morePreviousMarker = null;
+    public Address addressToCompare;
+    public Button buttonShowHistory;
+    public Button buttonSearcher;
+    public boolean isSearchTapped = false;
+    public String firstCityName;
+    public String secondCityName;
+    public boolean isFirstCitySelected = false;
+    public Address city1Location;
+    public Address city2Location;
+    public String cityName;
+    private Polyline line;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -70,7 +85,8 @@ public class MainActivity extends AppCompatActivity {
         buttonSearch = findViewById(R.id.buttonSearch);
         buttonComparer = findViewById(R.id.buttonComparer);
         buttonSelectLocation = findViewById(R.id.buttonSelectLocation);
-        Button buttonShowHistory = findViewById(R.id.buttonShowHistory);
+        buttonShowHistory = findViewById(R.id.buttonShowHistory);
+        buttonSearcher = findViewById(R.id.buttonSearcher);
         mapView = findViewById(R.id.mapView);
         mapView.setScrollableAreaLimitDouble(new BoundingBox(85, 180, -85, -180));
         mapView.setMaxZoomLevel(20.0);
@@ -85,11 +101,15 @@ public class MainActivity extends AppCompatActivity {
         buttonSearch.setVisibility(View.VISIBLE);
         editTextLocation.setVisibility(View.GONE);
         buttonSelectLocation.setVisibility(View.GONE);
+        buttonComparer.setVisibility(View.VISIBLE);
+        buttonSearcher.setVisibility(View.GONE);
         buttonSearch.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) {
+            public void onClick(View view)  {
                 String cityName = editTextCity.getText().toString();
                 performCitySearch(cityName);
+                editTextCity.setText("");
+                markerByTap();
             }
         });
         buttonComparer.setOnClickListener(new View.OnClickListener() {
@@ -99,39 +119,32 @@ public class MainActivity extends AppCompatActivity {
             boolean isMarker = true;
             public String firstCity;
             public String secondCity;
+            private int markerCount;
             @Override
             public void onClick(View view) {
-                if (elevationInfoWindow != null) {
-                    elevationInfoWindow.close();
+                if (!isSearchTapped) {
+                    buttonSearcher.setVisibility(View.VISIBLE);
+                    buttonComparer.setVisibility(View.GONE);
+                    if (elevationInfoWindow != null) {
+                        elevationInfoWindow.close();
+                    }
+                    if (isMark) {
+                        mapView.getOverlays().clear();
+                        isMark = false;
+                    }
+                    updateToCompare();
+                    showDialogForLocationInput();
                 }
-                if (isMark){
-                    mapView.getOverlays().clear();
-                    isMark = false;
-                }
-//                String cityName = editTextCity.getText().toString();
-//                if (!isFirstCitySelected) {
-//                    firstCity = cityName;
-//                    city1Location = getAdress(cityName, mapView);
-//                    isFirstCitySelected = true;
-//                    editTextCity.setText("");
-//                } else {
-//                    secondCity = cityName;
-//                    city2Location = getAdress(cityName, mapView);
-//                    isFirstCitySelected = false;
-//                    editTextCity.setText("");
-//                    isMark = true;
-//                }
-//                compareTwoLocations(city1Location, city2Location, firstCity, secondCity);
-//                city2Location = null;
-//                if (!isMarker){
-//                    isMarker = true;
-//                }
-                if (isMark){
-                    mapView.getOverlays().clear();
-                    isMark = false;
-                }
-                updateToCompare();
-                showDialogForLocationInput();
+            }
+        });
+
+        buttonSearcher.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view)  {
+                buttonSearcher.setVisibility(View.GONE);
+                buttonComparer.setVisibility(View.VISIBLE);
+                updateToSearch();
+                isSearchTapped = true;
             }
         });
         buttonShowHistory.setOnClickListener(new View.OnClickListener() {
@@ -147,11 +160,17 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         mapView.getOverlays().add(new MapEventsOverlay(new MapEventsReceiver() {
+            private Marker previousMarker;
+
             @Override
             public boolean singleTapConfirmedHelper(GeoPoint p) {
+                if (previousMarker != null) {
+                    mapView.getOverlays().remove(previousMarker);
+                }
                 Marker marker = new Marker(mapView);
                 marker.setPosition(p);
                 mapView.getOverlays().add(marker);
+                previousMarker = marker;
                 Geocoder geocoder = new Geocoder(getBaseContext(), Locale.getDefault());
                 try {
                     List<Address> addresses = geocoder.getFromLocation(p.getLatitude(), p.getLongitude(), 1);
@@ -191,10 +210,12 @@ public class MainActivity extends AppCompatActivity {
                 }
                 mapView.getOverlays().clear();
                 Marker marker = new Marker(mapView);
+                previousMarker = marker;
                 marker.setPosition(new GeoPoint(latitude, longitude));
                 mapView.getOverlays().add(marker);
                 mapView.getController().setCenter(new GeoPoint(latitude, longitude));
                 mapView.invalidate();
+                editTextCity.clearFocus();
                 String locations = String.valueOf(latitude) + " , " + String.valueOf(longitude);
                 Retrofit retrofit = new Retrofit.Builder()
                         .baseUrl(OPEN_ELEVATION_API_BASE_URL)
@@ -275,7 +296,19 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private Address getAdress(String cityName, MapView mapView) {
+//    public void performCityTapToCompare(Address address){
+//        double latitude = address.getLatitude();
+//        double longitude = address.getLongitude();
+//        if (elevationInfoWindow != null) {
+//            elevationInfoWindow.close();
+//        }
+//        Marker marker = new Marker(mapView);
+//        marker.setPosition(new GeoPoint(latitude, longitude));
+//        mapView.getController().setCenter(new GeoPoint(latitude, longitude));
+//        mapView.invalidate();
+//    }
+
+    private Address getAdressForSearch(String cityName, MapView mapView) {
         Geocoder geocoder = new Geocoder(this);
         List<Address> addresses;
         Address address = null;
@@ -286,6 +319,15 @@ public class MainActivity extends AppCompatActivity {
                 double latitude = address.getLatitude();
                 double longitude = address.getLongitude();
                 Marker marker = new Marker(mapView);
+                if (firstCityName == null && secondCityName == null){
+                    mapView.getOverlays().remove(previousMarker);
+                    mapView.getOverlays().remove(morePreviousMarker);
+                    if (line != null) {
+                        mapView.getOverlays().remove(line);
+                    }
+                }
+                morePreviousMarker = previousMarker;
+                previousMarker = marker;
                 marker.setPosition(new GeoPoint(latitude, longitude));
                 mapView.getOverlays().add(marker);
                 mapView.getController().setCenter(new GeoPoint(latitude, longitude));
@@ -299,9 +341,25 @@ public class MainActivity extends AppCompatActivity {
         return address;
     }
 
-    private void compareTwoLocations(Address city1Location, Address city2Location, String firstCity, String secondCity) {
+    private Address getAdressForTap(String cityName) {
+        Geocoder geocoder = new Geocoder(this);
+        List<Address> addresses;
+        Address address = null;
+        try {
+            addresses = geocoder.getFromLocationName(cityName, 1);
+            if (addresses != null && !addresses.isEmpty()) {
+                address = addresses.get(0);
+            } else {
+                Toast.makeText(this, "Город не найден", Toast.LENGTH_SHORT).show();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return address;
+    }
+
+    private void compareTwoLocations() {
         if (city1Location != null && city2Location != null) {
-            updateToSearch();
             String location1 = String.valueOf(city1Location.getLatitude()) + " , " + String.valueOf(city1Location.getLongitude());
             String location2 = String.valueOf(city2Location.getLatitude()) + " , " + String.valueOf(city2Location.getLongitude());
             GeoPoint point1 = convertAddressToGeoPoint(city1Location);
@@ -327,8 +385,12 @@ public class MainActivity extends AppCompatActivity {
                                     drawGreenLine(point1, point2, elevationDifference);
                                     CompareInfoDialog compareInfoDialog = new CompareInfoDialog(elevationDifference);
                                     compareInfoDialog.show(getSupportFragmentManager(), compareInfoDialog.getTag());
-                                    String cities = "Разница между " + firstCity + " и " + secondCity;
+                                    String cities = "Разница между " + firstCityName + " и " + secondCityName;
                                     historyItems.put(cities, elevationDifference);
+                                    city1Location = null;
+                                    city2Location = null;
+                                    firstCityName = null;
+                                    secondCityName = null;
                                 } else {
                                     Log.e("Elevation", "Failed to retrieve elevation data for city 2.");
                                 }
@@ -343,6 +405,7 @@ public class MainActivity extends AppCompatActivity {
                         Log.e("Elevation", "Failed to retrieve elevation data for city 1.");
                     }
                 }
+
                 @Override
                 public void onFailure(Call<ElevationResponse> call, Throwable t) {
                     Log.e("Elevation", "Error: " + t.getMessage());
@@ -368,10 +431,10 @@ public class MainActivity extends AppCompatActivity {
         return new GeoPoint(latitude, longitude);
     }
     private void drawGreenLine(GeoPoint startPoint, GeoPoint endPoint, double elevationDifference) {
-        Polyline line = new Polyline();
+        line = new Polyline();
         if (elevationDifference < 50) {
             line.setColor(Color.GREEN);
-        } else if (elevationDifference < 100){
+        } else if (elevationDifference < 100) {
             line.setColor(Color.YELLOW);
         } else {
             line.setColor(Color.RED);
@@ -382,28 +445,52 @@ public class MainActivity extends AppCompatActivity {
         mapView.invalidate();
     }
     private void showDialogForLocationInput() {
-        buttonSelectLocation.setOnClickListener(new View.OnClickListener() {
-            private String firstCityName;
-            private Address city1Location;
-            private Address city2Location;
-            private String secondCityName;
-            boolean isFirstCitySelected = false;
+//        if (buttonSearcher.performClick()){
+//            return;
+//        }
+        markerByTapToCompare(new GeocodeCallback() {
             @Override
-            public void onClick(View v) {
-                String cityName = editTextLocation.getText().toString();
+            public void onGeocodeSuccess(Address address) {
+                cityName = addressToCompare.getAddressLine(0);
                 if (!isFirstCitySelected) {
                     firstCityName = cityName;
-                    city1Location = getAdress(cityName, mapView);
+                    city1Location = getAdressForTap(cityName);
                     isFirstCitySelected = true;
                     editTextLocation.setText("");
                 } else {
                     secondCityName = cityName;
-                    city2Location = getAdress(cityName, mapView);
+                    city2Location = getAdressForTap(cityName);
                     isFirstCitySelected = false;
                     editTextLocation.setText("");
                     isMark = true;
                 }
-                compareTwoLocations(city1Location, city2Location, firstCityName, secondCityName);
+                compareTwoLocations();
+            }
+
+            @Override
+            public void onGeocodeFailure(String errorMessage) {
+                Log.e("Error:", errorMessage);
+            }
+        });
+        buttonSelectLocation.setOnClickListener(new View.OnClickListener() {
+            private Marker marker;
+
+            @Override
+            public void onClick(View v) {
+                cityName = editTextLocation.getText().toString();
+                if (!isFirstCitySelected) {
+                    firstCityName = cityName;
+                    city1Location = getAdressForSearch(cityName, mapView);
+                    isFirstCitySelected = true;
+                    editTextLocation.setText("");
+                } else {
+                    secondCityName = cityName;
+                    city2Location = getAdressForSearch(cityName, mapView);
+                    isFirstCitySelected = false;
+                    editTextLocation.setText("");
+                    isMark = true;
+                }
+                compareTwoLocations();
             }
         });
     }
@@ -419,5 +506,92 @@ public class MainActivity extends AppCompatActivity {
         buttonSelectLocation.setVisibility(View.GONE);
         editTextCity.setVisibility(View.VISIBLE);
         buttonSearch.setVisibility(View.VISIBLE);
+        mapView.getOverlays().remove(previousMarker);
+        mapView.getOverlays().remove(morePreviousMarker);
+        if (line != null) {
+            mapView.getOverlays().remove(line);
+        }
+
+        firstCityName = null;
+        secondCityName = null;
+        city1Location = null;
+        city2Location = null;
+
+        isFirstCitySelected = false;
+    }
+
+    private void markerByTap() {
+        mapView.getOverlays().add(new MapEventsOverlay(new MapEventsReceiver() {
+            @Override
+            public boolean singleTapConfirmedHelper(GeoPoint p) {
+                if (previousMarker != null) {
+                    mapView.getOverlays().remove(previousMarker);
+                }
+                Marker marker = new Marker(mapView);
+                marker.setPosition(p);
+                mapView.getOverlays().add(marker);
+                previousMarker = marker;
+                Geocoder geocoder = new Geocoder(getBaseContext(), Locale.getDefault());
+                try {
+                    List<Address> addresses = geocoder.getFromLocation(p.getLatitude(), p.getLongitude(), 1);
+                    if (addresses != null && !addresses.isEmpty()) {
+                        Address address = addresses.get(0);
+                        performCityTap(address);
+                    } else {
+                        Log.e("Tap Error", "Not Found");
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                return true;
+            }
+
+            @Override
+            public boolean longPressHelper(GeoPoint p) {
+                return false;
+            }
+        }));
+    }
+
+    private void markerByTapToCompare(final GeocodeCallback callback) {
+        mapView.getOverlays().add(new MapEventsOverlay(new MapEventsReceiver() {
+            @Override
+            public boolean singleTapConfirmedHelper(GeoPoint p) {
+                Marker marker = new Marker(mapView);
+                marker.setPosition(p);
+                mapView.getController().setCenter(p);
+                mapView.invalidate();
+                mapView.getOverlays().add(marker);
+                if (firstCityName == null && secondCityName == null) {
+                    mapView.getOverlays().remove(previousMarker);
+                    mapView.getOverlays().remove(morePreviousMarker);
+                    if (line != null) {
+                        mapView.getOverlays().remove(line);
+                    }
+                }
+                morePreviousMarker = previousMarker;
+                previousMarker = marker;
+                Geocoder geocoder = new Geocoder(getBaseContext(), Locale.getDefault());
+                try {
+                    List<Address> addresses = geocoder.getFromLocation(p.getLatitude(), p.getLongitude(), 1);
+                    if (addresses != null && !addresses.isEmpty()) {
+                        addressToCompare = addresses.get(0);
+                        callback.onGeocodeSuccess(addressToCompare);
+                    } else {
+                        Log.e("Tap Error", "Not Found");
+                        callback.onGeocodeFailure("Адрес не найден");
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    callback.onGeocodeFailure("Ошибка геокодирования: " + e.getMessage());
+                }
+                return true;
+            }
+
+            @Override
+            public boolean longPressHelper(GeoPoint p) {
+                return false;
+            }
+        }));
     }
 }
