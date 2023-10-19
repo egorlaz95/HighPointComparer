@@ -71,6 +71,10 @@ public class MainActivity extends AppCompatActivity {
     public Address city2Location;
     public String cityName;
     private Polyline line;
+    public Address firstAddressToCompare;
+    public Address secondAddressToCompare;
+    public GeoPoint startPoint;
+    public GeoPoint endPoint;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -372,7 +376,8 @@ public class MainActivity extends AppCompatActivity {
                                 if (response.isSuccessful() && response.body() != null) {
                                     double elevation2 = response.body().getResults()[0].getElevation();
                                     double elevationDifference = Math.abs(elevation2 - elevation1);
-                                    drawGreenLine(point1, point2, elevationDifference);
+//                                    drawGreenLine(point1, point2, elevationDifference);
+                                    setLineColor(elevationDifference);
                                     CompareInfoDialog compareInfoDialog = new CompareInfoDialog(elevationDifference);
                                     compareInfoDialog.show(getSupportFragmentManager(), compareInfoDialog.getTag());
                                     String cities = "Разница между " + firstCityName + " и " + secondCityName;
@@ -420,8 +425,11 @@ public class MainActivity extends AppCompatActivity {
         double longitude = address.getLongitude();
         return new GeoPoint(latitude, longitude);
     }
-    private void drawGreenLine(GeoPoint startPoint, GeoPoint endPoint, double elevationDifference) {
+    private void setLine(){
         line = new Polyline();
+        line.setPoints(Arrays.asList(startPoint, endPoint));
+    }
+    private void setLineColor(Double elevationDifference){
         if (elevationDifference < 50) {
             line.setColor(Color.GREEN);
         } else if (elevationDifference < 100) {
@@ -430,7 +438,6 @@ public class MainActivity extends AppCompatActivity {
             line.setColor(Color.RED);
         }
         line.setWidth(6);
-        line.setPoints(Arrays.asList(startPoint, endPoint));
         mapView.getOverlayManager().add(line);
         mapView.invalidate();
     }
@@ -441,12 +448,14 @@ public class MainActivity extends AppCompatActivity {
                 cityName = addressToCompare.getAddressLine(0);
                 if (!isFirstCitySelected) {
                     firstCityName = cityName;
-                    city1Location = getAdressForTap(cityName);
+//                    city1Location = getAdressForTap(cityName);
+                    city1Location = addressToCompare;
                     isFirstCitySelected = true;
                     editTextLocation.setText("");
                 } else {
                     secondCityName = cityName;
-                    city2Location = getAdressForTap(cityName);
+//                    city2Location = getAdressForTap(cityName);
+                    city2Location = addressToCompare;
                     isFirstCitySelected = false;
                     editTextLocation.setText("");
                     isMark = true;
@@ -460,7 +469,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         buttonSelectLocation.setOnClickListener(new View.OnClickListener() {
-            private Marker marker;
             @Override
             public void onClick(View v) {
                 cityName = editTextLocation.getText().toString();
@@ -555,6 +563,11 @@ public class MainActivity extends AppCompatActivity {
                 mapView.getController().setCenter(p);
                 mapView.invalidate();
                 mapView.getOverlays().add(marker);
+                endPoint = startPoint;
+                startPoint = p;
+                if (startPoint != null && endPoint != null){
+                    setLine();
+                }
                 if (firstCityName == null && secondCityName == null) {
                     mapView.getOverlays().remove(previousMarker);
                     mapView.getOverlays().remove(morePreviousMarker);
