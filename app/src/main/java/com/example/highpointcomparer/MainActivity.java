@@ -356,8 +356,6 @@ public class MainActivity extends AppCompatActivity {
         if (city1Location != null && city2Location != null) {
             String location1 = String.valueOf(city1Location.getLatitude()) + " , " + String.valueOf(city1Location.getLongitude());
             String location2 = String.valueOf(city2Location.getLatitude()) + " , " + String.valueOf(city2Location.getLongitude());
-            GeoPoint point1 = convertAddressToGeoPoint(city1Location);
-            GeoPoint point2 = convertAddressToGeoPoint(city2Location);
             Retrofit retrofit = new Retrofit.Builder()
                     .baseUrl(OPEN_ELEVATION_API_BASE_URL)
                     .addConverterFactory(GsonConverterFactory.create())
@@ -376,7 +374,6 @@ public class MainActivity extends AppCompatActivity {
                                 if (response.isSuccessful() && response.body() != null) {
                                     double elevation2 = response.body().getResults()[0].getElevation();
                                     double elevationDifference = Math.abs(elevation2 - elevation1);
-//                                    drawGreenLine(point1, point2, elevationDifference);
                                     setLineColor(elevationDifference);
                                     CompareInfoDialog compareInfoDialog = new CompareInfoDialog(elevationDifference);
                                     compareInfoDialog.show(getSupportFragmentManager(), compareInfoDialog.getTag());
@@ -448,17 +445,18 @@ public class MainActivity extends AppCompatActivity {
                 cityName = addressToCompare.getAddressLine(0);
                 if (!isFirstCitySelected) {
                     firstCityName = cityName;
-//                    city1Location = getAdressForTap(cityName);
                     city1Location = addressToCompare;
                     isFirstCitySelected = true;
                     editTextLocation.setText("");
                 } else {
                     secondCityName = cityName;
-//                    city2Location = getAdressForTap(cityName);
                     city2Location = addressToCompare;
                     isFirstCitySelected = false;
                     editTextLocation.setText("");
                     isMark = true;
+                }
+                if (startPoint != null && endPoint != null){
+                    setLine();
                 }
                 compareTwoLocations();
             }
@@ -482,14 +480,19 @@ public class MainActivity extends AppCompatActivity {
                     }
                     firstCityName = cityName;
                     city1Location = getAdressForSearch(cityName, mapView);
+                    startPoint = convertAddressToGeoPoint(city1Location);
                     isFirstCitySelected = true;
                     editTextLocation.setText("");
                 } else {
                     secondCityName = cityName;
                     city2Location = getAdressForSearch(cityName, mapView);
+                    endPoint = convertAddressToGeoPoint(city2Location);
                     isFirstCitySelected = false;
                     editTextLocation.setText("");
                     isMark = true;
+                }
+                if (startPoint != null && endPoint != null){
+                    setLine();
                 }
                 compareTwoLocations();
             }
@@ -565,9 +568,6 @@ public class MainActivity extends AppCompatActivity {
                 mapView.getOverlays().add(marker);
                 endPoint = startPoint;
                 startPoint = p;
-                if (startPoint != null && endPoint != null){
-                    setLine();
-                }
                 if (firstCityName == null && secondCityName == null) {
                     mapView.getOverlays().remove(previousMarker);
                     mapView.getOverlays().remove(morePreviousMarker);
